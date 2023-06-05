@@ -1,0 +1,167 @@
+{
+    "name": "df_creditscore",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_ASDB_Source_creditscore",
+                        "type": "DatasetReference"
+                    },
+                    "name": "creditscoredata"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "DS_ASDB_rejectedrecords",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sinkrejecteddata"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DS_ASDB_creditscore_toppers",
+                        "type": "DatasetReference"
+                    },
+                    "name": "toppersdata"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "DS_ASDB_creditscore_alldata",
+                        "type": "DatasetReference"
+                    },
+                    "name": "allcustdata"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "partitionrows"
+                },
+                {
+                    "name": "filterdata"
+                },
+                {
+                    "name": "sortrejecteddata"
+                },
+                {
+                    "name": "uniquerecords"
+                },
+                {
+                    "name": "select1"
+                },
+                {
+                    "name": "window1"
+                },
+                {
+                    "name": "sort1"
+                },
+                {
+                    "name": "split1"
+                },
+                {
+                    "name": "select2"
+                },
+                {
+                    "name": "sort2"
+                },
+                {
+                    "name": "select3"
+                },
+                {
+                    "name": "sort3"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          credit_ID as integer,",
+                "          card_type as string,",
+                "          credit_name as string,",
+                "          credit_score as integer",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     isolationLevel: 'READ_UNCOMMITTED',",
+                "     format: 'table') ~> creditscoredata",
+                "creditscoredata window(over(card_type,",
+                "          credit_score,",
+                "          credit_name),",
+                "     asc(credit_ID, true),",
+                "     row_num = rowNumber()) ~> partitionrows",
+                "partitionrows filter(greaterOrEqual(row_num, 2)) ~> filterdata",
+                "filterdata sort(asc(credit_ID, true)) ~> sortrejecteddata",
+                "partitionrows filter(equals(row_num, 1)) ~> uniquerecords",
+                "uniquerecords select(mapColumn(",
+                "          credit_ID,",
+                "          card_type,",
+                "          credit_name,",
+                "          credit_score",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> select1",
+                "select1 window(over(card_type),",
+                "     desc(credit_score, true),",
+                "     rank = rank(),",
+                "          dense_rank = denseRank()) ~> window1",
+                "window1 sort(asc(dense_rank, true)) ~> sort1",
+                "sort1 split(equals(dense_rank, 1),",
+                "     disjoint: true) ~> split1@(toppers, allcustdata)",
+                "split1@toppers select(mapColumn(",
+                "          credit_ID,",
+                "          card_type,",
+                "          credit_name,",
+                "          credit_score",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> select2",
+                "select2 sort(asc(credit_ID, true)) ~> sort2",
+                "split1@allcustdata select(mapColumn(",
+                "          credit_ID,",
+                "          card_type,",
+                "          credit_name,",
+                "          credit_score",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> select3",
+                "select3 sort(asc(credit_ID, true)) ~> sort3",
+                "sortrejecteddata sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     recreate:true,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError',",
+                "     partitionBy('hash', 1)) ~> sinkrejecteddata",
+                "sort2 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     recreate:true,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError',",
+                "     partitionBy('hash', 1)) ~> toppersdata",
+                "sort3 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     deletable:false,",
+                "     insertable:true,",
+                "     updateable:false,",
+                "     upsertable:false,",
+                "     recreate:true,",
+                "     format: 'table',",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     errorHandlingOption: 'stopOnFirstError',",
+                "     partitionBy('hash', 1)) ~> allcustdata"
+            ]
+        }
+    }
+}
