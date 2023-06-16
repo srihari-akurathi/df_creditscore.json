@@ -1,0 +1,9 @@
+{
+	"name": "itsmehariadfv2",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "003fb829-f53e-436a-9605-4e8969d631f5",
+		"tenantId": "a17c9b92-fee6-4451-84f5-ff2d0d359e4d"
+	}
+}
